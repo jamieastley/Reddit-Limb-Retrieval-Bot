@@ -11,14 +11,20 @@ def bot_login():
 			password = config.password,
 			client_id = config.client_id,
 			client_secret = config.client_secret,
-			user_agent = "Jizzy_Gillespie92 limb retrieval bot")
+			user_agent = "LimbRetrieval-Bot by u/Jizzy_Gillespie92")
     return r
 
 def run_bot(r):
-	print shrug
-	for comment in r.subreddit('test').comments(limit=30):
-		if shrug.decode('utf-8') in comment.body:
-			print "shrug found!", shrug
+	subreddit = r.subreddit('all')
+	comments = subreddit.stream.comments()
+	for comment in comments:
+		text = comment.body
+		author = comment.author
+		if shrug.decode('utf-8') in text:
+			print "shrug found in- ", author, text
+			print(r.user.me())
 			comment.reply("You dropped this \ ")
+			
+			# TODO write to log all occurrences
 r = bot_login()
 run_bot(r)

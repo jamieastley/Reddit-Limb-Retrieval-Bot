@@ -3,6 +3,9 @@
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Specific files for reddit bot
+oauth.ini
 config.py
 
 # Byte-compiled / optimized / DLL files
