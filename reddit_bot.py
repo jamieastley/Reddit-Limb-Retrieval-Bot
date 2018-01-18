@@ -16,7 +16,7 @@ def bot_login():
 
 def run_bot(r):
 	print shrug
-	for comment in r.subreddit('test').comments(limit=105):
+	for comment in r.subreddit('test').comments(limit=30):
 		if shrug.decode('utf-8') in comment.body:
 			print "shrug found!", shrug
 			comment.reply("You dropped this \ ")
