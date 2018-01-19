@@ -5,6 +5,8 @@ import praw
 import config
 
 shrug = '¯\_(ツ)_/¯'
+shoulders = '¯\\\_(ツ)_/¯'
+decapitated = '¯\ _(ツ)_/¯'
 
 def bot_login():
     r = praw.Reddit(username = config.username,
@@ -20,11 +22,31 @@ def run_bot(r):
 	for comment in comments:
 		text = comment.body
 		author = comment.author
+
 		if shrug.decode('utf-8') in text:
-			print "shrug found in- ", author, text
-			print(r.user.me())
+
+		#create/open log.txt
+			try:
+				file = open("log.txt", "a")
+			except IOError:
+				file = open("log.txt", "w")
+
+			file.write(str(author) + shrug + '\n')
+			file.close()
+
+			print "Missing limb found in: ", "(",author,")", text
 			comment.reply("You dropped this \ ")
-			
-			# TODO write to log all occurrences
+		
+		elif shoulders.decode('utf-8') in text:
+			try:
+				file = open("log.txt", "a")
+			except IOError:
+				file = open("log.txt", "w")
+
+			file.write(str(author) + shoulders + '\n')
+			file.close()
+			print "Shoulders lost forever: ", "(",author,")", text
+			comment.reply("I have retrieved these for you _ _")
+
 r = bot_login()
 run_bot(r)
