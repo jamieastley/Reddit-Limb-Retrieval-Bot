@@ -3,6 +3,7 @@
 
 import praw
 import config
+import footer
 
 shrug = '¯\_(ツ)_/¯'
 shoulders = '¯\\\_(ツ)_/¯'
@@ -23,8 +24,7 @@ def run_bot(r):
 		text = comment.body
 		author = comment.author
 
-		if shrug.decode('utf-8') in text:
-
+		if shrug.decode('utf-8') in text: #decode required for unicode characters
 		#create/open log.txt
 			try:
 				file = open("log.txt", "a")
@@ -34,8 +34,9 @@ def run_bot(r):
 			file.write(str(author) + shrug + '\n')
 			file.close()
 
-			print "Missing limb found in: ", "(",author,")", text
-			comment.reply("You dropped this \ ")
+			# print "Missing limb found in: ", "(",author,")", text
+			comment.reply("You dropped this \ " + footer.footerComment)
+			
 		
 		elif shoulders.decode('utf-8') in text:
 			try:
@@ -45,8 +46,8 @@ def run_bot(r):
 
 			file.write(str(author) + shoulders + '\n')
 			file.close()
-			print "Shoulders lost forever: ", "(",author,")", text
-			comment.reply("I have retrieved these for you _ _")
+			# print "Shoulders lost forever: ", "(",author,")", text
+			comment.reply("I have retrieved these for you _ _" + footer.footerComment)
 
 r = bot_login()
 run_bot(r)
