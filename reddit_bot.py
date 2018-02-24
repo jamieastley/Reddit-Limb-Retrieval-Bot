@@ -10,6 +10,7 @@ from datetime import datetime
 shrug = '¯\_(ツ)_/¯'
 shoulders = '¯\\\_(ツ)_/¯'
 decapitated = '¯\ _(ツ)_/¯'
+wiseguy = '¯\_(ツ)_/¯\\'
 
 def bot_login():
     r = praw.Reddit(username = config.username,
@@ -28,7 +29,20 @@ def run_bot(r):
 		author = comment.author
 		run_bot.sub = str(comment.subreddit)
 
-		if shrug.decode('utf-8') in text: #decode required for unicode characters
+		if wiseguy.decode('utf-8') in text:
+			try:
+				file = open("log.txt", "a")
+			except IOError:
+				file = open("log.txt", "w")
+
+			commentTime = str(datetime.now())
+			file.write(commentTime + ': ' + str(author) + ' ( in r/' + run_bot.sub + ')' '\n')
+			file.close()
+
+			comment.reply("ಠ_ಠ" + footer.footerComment)
+			break
+		
+		elif shrug.decode('utf-8') in text: #decode required for unicode characters
 		#create/open log.txt
 			try:
 				file = open("log.txt", "a")
@@ -54,6 +68,7 @@ def run_bot(r):
 			file.close()
 			# print "Shoulders lost forever: ", "(",author,")", text
 			comment.reply("I have retrieved these for you _ _" + footer.footerComment)
+
 
 while True:
 	try:
