@@ -1,3 +1,7 @@
+# Project related
+bot/bot_logs
+bot.agent
+
 # VSCode
 **/.vscode/*
 
@@ -112,8 +116,6 @@ ENV/
 
 # mypy
 .mypy_cache/
-log.txt
-bot.agent
 
 # Misc
 .DS_Store
