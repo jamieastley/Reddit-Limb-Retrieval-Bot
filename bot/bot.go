@@ -49,25 +49,36 @@ type limbRetrievalBot struct {
 	//Api
 }
 
-func NewLimbRetrievalBot(filePath string) LimbRetrievalBot {
-	return limbRetrievalBot{
-		Logger: NewBotLogger(filePath),
-		Clock:  &clock{},
+func NewLimbRetrievalBot(logPath string) (LimbRetrievalBot, error) {
+	logger := NewBotLogger(logPath)
+	logPathErr := logger.initDir(logPath + eventDir)
+	if logPathErr != nil {
+		return nil, logPathErr
 	}
+	errPathErr := logger.initDir(logPath + errDir)
+	if errPathErr != nil {
+		return nil, errPathErr
+	}
+
+	return limbRetrievalBot{
+		Logger: logger,
+		Clock:  &clock{},
+	}, nil
 }
 
-func RetrieveLimbs(comment *reddit.Comment, limbRetrievalBot LimbRetrievalBot) string {
+func RetrieveLimbs(comment *reddit.Comment, bot LimbRetrievalBot) string {
 	var shrug = checkContainsShrug(comment.Body, comment.BodyHTML)
-	event := BotEvent{
-		DateTime:     limbRetrievalBot.NowUTC(),
-		RedditorName: comment.Author,
-		Subreddit:    comment.Subreddit,
-		Event:        shrug.matchType(),
-		Permalink:    comment.Permalink,
-	}
 
 	if shrug != NoShrug {
-		limbRetrievalBot.Log(&event)
+		event := BotEvent{
+			DateTime:     bot.NowUTC(),
+			RedditorName: comment.Author,
+			Subreddit:    comment.Subreddit,
+			Event:        shrug.matchType(),
+			Permalink:    comment.Permalink,
+		}
+
+		bot.Log(&event)
 		return shrug.commentResponse()
 	}
 
@@ -78,18 +89,18 @@ func checkContainsShrug(body string, bodyHtml string) Shrug {
 	for _, s := range invalidShrugBodies {
 		match, _ := regexp.Match(string(s), []byte(body))
 		if match {
-			fmt.Sprintf("found a match against %s", s)
-		}
+			fmt.Printf("found a preliminary match against %s\n", s)
 
-		if match {
-			// TODO: first match passed, now check if within code block
-			return s
+			// verify not inside code block, eg:
+			// <div class="md"><p><code>¯\_(ツ)_/¯</code></p>
+			isInsideCodeBlock, _ := regexp.Match(LiteralCodeShrugPattern, []byte(bodyHtml))
+			if !isInsideCodeBlock {
+				fmt.Println("match not inside code block, returning match")
+				return s
+			}
+			fmt.Println("match not within code block, returning match")
 		}
 	}
 
 	return NoShrug
-}
-
-func HandleError(err error) {
-
 }

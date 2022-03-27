@@ -28,23 +28,43 @@ func main() {
 		fmt.Printf("Failed to init agent: %s", err)
 	}
 	cfg := graw.Config{
-		SubredditComments: []string{"LimbRetrievalBotTest", "LockedLRBTest"},
+		SubredditComments: []string{
+			"LimbRetrievalBotTest",
+			"LockedLRBTest",
+		},
 	}
-	handler := &grawBot{bot, NewLimbRetrievalBot(loggingDirPath)}
+
+	lrb, err := NewLimbRetrievalBot(loggingDirPath)
+	if err != nil {
+		fmt.Printf("failed to initialise %s: %s", botName, err)
+		os.Exit(1)
+	}
+	handler := &grawBot{bot, lrb}
+
 	if _, wait, err := graw.Run(handler, bot, cfg); err != nil {
-		_ = fmt.Sprintf("Failed to start graw run: %s", err)
+		fmt.Printf("Failed to start graw run: %s", err)
 	} else {
+		// wait() returns an error message if the bot fails
+		// TODO: handle reddit server issues
 		fmt.Println("graw run failed: ", wait())
 	}
 }
 
 func (b *grawBot) Comment(comment *reddit.Comment) error {
 
-	msg := RetrieveLimbs(comment, b.LimbRetrievalBot)
+	response := RetrieveLimbs(comment, b.LimbRetrievalBot)
 
-	if msg != "" {
-		if err := b.Reply(comment.Name, msg); err != nil {
-			HandleError(err)
+	if response != "" {
+		if err := b.Reply(comment.Name, response); err != nil {
+			b.LogError(
+				&BotEvent{
+					DateTime:     b.NowUTC(),
+					RedditorName: comment.Author,
+					Subreddit:    comment.Subreddit,
+					Event:        err.Error(),
+					Permalink:    comment.Permalink,
+				},
+			)
 		}
 	}
 

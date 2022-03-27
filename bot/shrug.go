@@ -1,6 +1,12 @@
 package main
 
+import "fmt"
+
 type Shrug string
+
+var LiteralCodeShrugPattern = fmt.Sprintf(`<code>.*%s.*<\/code>`, MissingLeftArmPattern)
+
+const literalShrug = `¯\_(ツ)_/¯`
 
 const (
 	// NoShrug defines that no matching shrug was found

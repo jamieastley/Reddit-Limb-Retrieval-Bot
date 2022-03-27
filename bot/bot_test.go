@@ -17,6 +17,10 @@ type mockLimbBot struct {
 	mock.Mock
 }
 
+func (m *mockLimbBot) LogError(event *BotEvent) {
+	m.Called(event)
+}
+
 func (m *mockLimbBot) Log(event *BotEvent) {
 	m.Called(event)
 }
@@ -74,6 +78,17 @@ func TestRetrieveLimbs(t *testing.T) {
 				Subreddit: subreddit,
 			},
 			expectedString: MissingShouldersPattern.commentResponse(),
+		},
+		// Verify HTML
+		{
+			comment: &reddit.Comment{
+				Body:      "`¯\\_(ツ)_/¯`",
+				BodyHTML:  `<div class="md"><p><code>¯\_(ツ)_/¯</code></p></div>`,
+				Author:    "BobbyTables",
+				Permalink: permalink,
+				Subreddit: subreddit,
+			},
+			expectedString: NoShrug.commentResponse(),
 		},
 	}
 
