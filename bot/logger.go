@@ -7,6 +7,8 @@ import (
 
 /// dateTimeFormat sets the preferred format to YYYY/MM/DD
 const dateTimeFormat = "2006-01-02"
+const eventDir = "events/"
+const errDir = "errors/"
 
 type BotEvent struct {
 	DateTime     time.Time
@@ -18,6 +20,7 @@ type BotEvent struct {
 
 type Logger interface {
 	Log(event *BotEvent)
+	LogError(event *BotEvent)
 }
 
 type BotLogger struct {
@@ -32,22 +35,29 @@ func NewBotLogger(filePath string) *BotLogger {
 	}
 }
 
-func (botLogger *BotLogger) Log(event *BotEvent) {
+func (l *BotLogger) Log(event *BotEvent) {
+	writeLog(event, eventDir, l)
+}
+
+func (l *BotLogger) LogError(event *BotEvent) {
+	writeLog(event, errDir, l)
+}
+
+func writeLog(event *BotEvent, dir string, l *BotLogger) {
 	var ymdNow = event.DateTime.Format(dateTimeFormat)
 	var isoDateTime = event.DateTime.Format(time.RFC3339)
-
-	err := botLogger.FileManager.write(
-		botLogger.FilePath+ymdNow+".csv",
+	writeErr := l.FileManager.write(
+		fmt.Sprintf("%s%s%s.csv", l.FilePath, dir, ymdNow),
 		[]string{
 			isoDateTime,
-			"u/" + event.RedditorName,
-			"r/" + event.Subreddit,
+			fmt.Sprintf("u/%s", event.RedditorName),
+			fmt.Sprintf("r/%s", event.Subreddit),
 			event.Event,
 			event.Permalink,
 		})
-	if err != nil {
+	if writeErr != nil {
 		// TODO: log to Sentry
-		fmt.Errorf("failed to write file: %s", err)
+		fmt.Printf("failed to write file: %s", writeErr)
 	}
-	fmt.Printf("%s, %s", ymdNow, event.Event)
+	fmt.Printf("%s, %s\n", ymdNow, event.Event)
 }
