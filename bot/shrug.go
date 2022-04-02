@@ -4,9 +4,9 @@ import "fmt"
 
 type Shrug string
 
-var LiteralCodeShrugPattern = fmt.Sprintf(`<code>.*%s.*<\/code>`, MissingLeftArmPattern)
-
-const literalShrug = `¯\_(ツ)_/¯`
+// CodeBlockShrugPattern pattern to find a correct shrug in a Markdown code block
+// <code>.*\s*(¯\\_\(ツ\)_\/¯).*\s*<\/code>
+var CodeBlockShrugPattern = fmt.Sprintf(`<code>.*\s*%s.*\s*<\/code>`, MissingLeftArmPattern)
 
 const (
 	// NoShrug defines that no matching shrug was found
