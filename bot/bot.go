@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/turnage/graw/reddit"
 	"regexp"
 	"time"
@@ -18,8 +17,10 @@ const (
 	Award     TypePrefix = "t6_"
 )
 
+const logDivider = "--------------------------------------------------------------------"
+
 type LimbRetrievalBot interface {
-	Logger
+	BotLogger
 	Clock
 	//Api
 }
@@ -44,7 +45,7 @@ type api struct {
 }
 
 type limbRetrievalBot struct {
-	Logger
+	BotLogger
 	Clock
 	//Api
 }
@@ -61,13 +62,13 @@ func NewLimbRetrievalBot(logPath string) (LimbRetrievalBot, error) {
 	}
 
 	return limbRetrievalBot{
-		Logger: logger,
-		Clock:  &clock{},
+		BotLogger: logger,
+		Clock:     &clock{},
 	}, nil
 }
 
 func RetrieveLimbs(comment *reddit.Comment, bot LimbRetrievalBot) string {
-	var shrug = checkContainsShrug(comment.Body, comment.BodyHTML)
+	var shrug = CheckContainsShrug(comment.Permalink, comment.Body, comment.BodyHTML, bot)
 
 	if shrug != NoShrug {
 		event := BotEvent{
@@ -78,27 +79,28 @@ func RetrieveLimbs(comment *reddit.Comment, bot LimbRetrievalBot) string {
 			Permalink:    comment.Permalink,
 		}
 
-		bot.Log(&event)
+		bot.LogEvent(&event)
 		return shrug.commentResponse()
 	}
 
 	return ""
 }
 
-func checkContainsShrug(body string, bodyHtml string) Shrug {
+func CheckContainsShrug(permalink, body, bodyHtml string, b LimbRetrievalBot) Shrug {
+	b.Debug(logDivider)
+	b.Debugf("checking for shrug in comment at: %s", permalink)
 	for _, s := range invalidShrugBodies {
 		match, _ := regexp.Match(string(s), []byte(body))
 		if match {
-			fmt.Printf("found a preliminary match against %s\n", s)
+			b.Debugf("found a preliminary match against %s", s)
 
-			// verify not inside code block, eg:
-			// <div class="md"><p><code>¯\_(ツ)_/¯</code></p>
-			isInsideCodeBlock, _ := regexp.Match(LiteralCodeShrugPattern, []byte(bodyHtml))
+			// verify not inside code block
+			isInsideCodeBlock, _ := regexp.Match(CodeBlockShrugPattern, []byte(bodyHtml))
 			if !isInsideCodeBlock {
-				fmt.Println("match not inside code block, returning match")
+				b.Debug("match not inside code block, returning confirmed match")
 				return s
 			}
-			fmt.Println("match not within code block, returning match")
+			b.Debug("preliminary match found inside code block, ignoring...")
 		}
 	}
 

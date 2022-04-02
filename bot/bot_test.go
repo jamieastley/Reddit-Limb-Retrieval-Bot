@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/turnage/graw/reddit"
@@ -17,11 +18,27 @@ type mockLimbBot struct {
 	mock.Mock
 }
 
+func (m *mockLimbBot) Info(args ...interface{}) {
+	fmt.Println(args...)
+}
+
+func (m *mockLimbBot) Infof(template string, args ...interface{}) {
+	fmt.Printf(template+"\n", args...)
+}
+
+func (m *mockLimbBot) Debug(args ...interface{}) {
+	fmt.Println(args...)
+}
+
+func (m *mockLimbBot) Debugf(template string, args ...interface{}) {
+	fmt.Printf(template+"\n", args...)
+}
+
 func (m *mockLimbBot) LogError(event *BotEvent) {
 	m.Called(event)
 }
 
-func (m *mockLimbBot) Log(event *BotEvent) {
+func (m *mockLimbBot) LogEvent(event *BotEvent) {
 	m.Called(event)
 }
 
@@ -31,7 +48,11 @@ func (m *mockLimbBot) NowUTC() time.Time {
 
 func TestRetrieveLimbs(t *testing.T) {
 	bot := new(mockLimbBot)
-	bot.On("Log", mock.Anything)
+	bot.On("LogEvent", mock.Anything)
+	bot.On("Info", mock.Anything)
+	bot.On("Infof", mock.Anything)
+	bot.On("Debug", mock.Anything)
+	bot.On("Debugf", mock.Anything)
 
 	testCases := []struct {
 		comment        *reddit.Comment
@@ -84,6 +105,27 @@ func TestRetrieveLimbs(t *testing.T) {
 			comment: &reddit.Comment{
 				Body:      "`¯\\_(ツ)_/¯`",
 				BodyHTML:  `<div class="md"><p><code>¯\_(ツ)_/¯</code></p></div>`,
+				Author:    "BobbyTables",
+				Permalink: permalink,
+				Subreddit: subreddit,
+			},
+			expectedString: NoShrug.commentResponse(),
+		},
+		{
+			comment: &reddit.Comment{
+				Body: "`¯\\_(ツ)_/¯`",
+				BodyHTML: `<code>¯\_(ツ)_/¯
+</code>`,
+				Author:    "BobbyTables",
+				Permalink: permalink,
+				Subreddit: subreddit,
+			},
+			expectedString: NoShrug.commentResponse(),
+		},
+		{
+			comment: &reddit.Comment{
+				Body:      "`¯\\_(ツ)_/¯`",
+				BodyHTML:  `<code>¯\_(ツ)_/¯\n</code>`,
 				Author:    "BobbyTables",
 				Permalink: permalink,
 				Subreddit: subreddit,
