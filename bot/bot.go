@@ -81,7 +81,7 @@ func CheckContainsShrug(permalink, body, bodyHtml string, b LimbRetrievalBot) Sh
 			// verify not inside code block
 			isInsideCodeBlock, _ := regexp.Match(CodeBlockShrugPattern, []byte(bodyHtml))
 			if !isInsideCodeBlock {
-				b.Debug("match not inside code block, returning confirmed match")
+				b.Infof("Invalid shrug found for pattern: %s, responding to comment...", s)
 				return s
 			}
 			b.Debug("preliminary match found inside code block, ignoring...")

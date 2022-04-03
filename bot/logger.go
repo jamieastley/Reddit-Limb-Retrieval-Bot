@@ -122,7 +122,7 @@ func writeLog(event *BotEvent, dir string, l *botLogger) {
 		// TODO: log to Sentry
 		l.logger.Error(writeErr.Error())
 	} else {
-		l.logger.Info("Successfully wrote to bot logs: ", event)
+		l.logger.Debug("Successfully wrote to bot logs: ", event)
 	}
 
 }
