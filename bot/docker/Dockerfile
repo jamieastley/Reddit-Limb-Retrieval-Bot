@@ -8,7 +8,8 @@ COPY go.sum ./
 COPY bot.agent ./
 COPY *.go ./
 
-RUN go build -o /limbretrievalbot
+# RUN go build -o /limbretrievalbot
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /limbretrievalbot
 
 ##
 ## Deploy
