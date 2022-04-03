@@ -1,28 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"github.com/turnage/graw/reddit"
 	"regexp"
 	"time"
 )
 
-type TypePrefix string
-
 const (
-	Comment   TypePrefix = "t1_"
-	Account   TypePrefix = "t2_"
-	Link      TypePrefix = "t3_"
-	Message   TypePrefix = "t4_"
-	Subreddit TypePrefix = "t5_"
-	Award     TypePrefix = "t6_"
+	logDivider     = "--------------------------------------------------------------------"
+	commentDivider = "\n***"
+	howToFooter    = "\n^^To&#32;prevent&#32;any&#32;more&#32;lost&#32;limbs&#32;throughout&#32;Reddit,&#32;correctly&#32;escape&#32;the&#32;arms&#32;and&#32;shoulders&#32;by&#32;typing&#32;the&#32;shrug&#32;as&#32;`¯\\\\\\_(ツ)_/¯`&#32;or&#32;`¯\\\\\\_(ツ)\\_/¯`"
+	linkFooter     = "\n\n[^^Click&#32;here&#32;to&#32;see&#32;why&#32;this&#32;is&#32;necessary](https://np.reddit.com/r/OutOfTheLoop/comments/3fbrg3/is_there_a_reason_why_the_arm_is_always_missing/ctn5gbf/)"
 )
-
-const logDivider = "--------------------------------------------------------------------"
 
 type LimbRetrievalBot interface {
 	BotLogger
 	Clock
-	//Api
 }
 
 type Clock interface {
@@ -35,19 +29,9 @@ func (c *clock) NowUTC() time.Time {
 	return time.Now().UTC()
 }
 
-type Api interface {
-	CheckParentId(parentId string)
-	LogInteraction()
-}
-
-type api struct {
-	//reddit.Bot
-}
-
 type limbRetrievalBot struct {
 	BotLogger
 	Clock
-	//Api
 }
 
 func NewLimbRetrievalBot(logPath string) (LimbRetrievalBot, error) {
@@ -104,5 +88,10 @@ func CheckContainsShrug(permalink, body, bodyHtml string, b LimbRetrievalBot) Sh
 		}
 	}
 
+	b.Debug("no matches found, ignoring comment...")
 	return NoShrug
+}
+
+func FormatLimbResponse(msg string) string {
+	return fmt.Sprintf("%s%s%s%s", msg, commentDivider, howToFooter, linkFooter)
 }

@@ -55,7 +55,7 @@ func (b *grawBot) Comment(comment *reddit.Comment) error {
 	response := RetrieveLimbs(comment, b.LimbRetrievalBot)
 
 	if response != "" {
-		if err := b.Reply(comment.Name, response); err != nil {
+		if err := b.Reply(comment.Name, FormatLimbResponse(response)); err != nil {
 			b.LogError(
 				&BotEvent{
 					DateTime:     b.NowUTC(),
