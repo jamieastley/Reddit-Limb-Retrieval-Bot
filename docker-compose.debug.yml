@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  db:
+    container_name: Database
+    env_file:
+      - .env
+    image: postgres:14.2-alpine
+    restart: always
+    ports:
+      - '5432:5432'
+    volumes:
+      - limbretrievalbot-data:/var/lib/postgresql/data
+      - ./.sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+
+  bot:
+    container_name: Bot
+    depends_on:
+      - db
+    env_file:
+      - .env
+    build:
+      context: ./bot
+      dockerfile: docker/Dockerfile
+    volumes:
+      - limbretrievalbot-data:/var/lib/bot
+    command: /etc/bin/limbretrievalbot
+
+
+volumes:
+  limbretrievalbot-data:
+    name: limbretrievalbot-data
+    driver: local
