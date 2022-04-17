@@ -13,6 +13,17 @@ services:
       - limbretrievalbot-data:/var/lib/postgresql/data
       - ./.sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
 
+  api:
+    container_name: API
+    env_file:
+      - .env
+    build:
+      context: ./api
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:8080"
+    command: /etc/bin/api
+
   bot:
     container_name: Bot
     depends_on:
