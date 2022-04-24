@@ -1,4 +1,4 @@
-module github/jamieastley/database
+module github/jamieastley/repository
 
 go 1.18
 
