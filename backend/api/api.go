@@ -4,6 +4,8 @@ import (
 	"api/graph"
 	"api/graph/generated"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jamieastley/limbretrievalbot/repository"
 	"log"
 	"net/http"
@@ -14,6 +16,7 @@ import (
 )
 
 const defaultPort = "8080"
+const graphQLEndpoint = "/graphql"
 
 func main() {
 	port := os.Getenv("PORT")
@@ -21,22 +24,38 @@ func main() {
 		port = defaultPort
 	}
 
-	repo, err := repository.NewRepository(os.Getenv("POSTGRES_DSN"))
+	s := CreateNewServer()
+	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
+		Resolvers: &graph.Resolver{
+			BannedSubreddit: s.BannedSubreddit,
+		},
+	}))
+	srv.Use(extension.Introspection{})
+	s.MountHandlers(srv)
+
+	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Fatal(http.ListenAndServe(":"+port, s.Router))
+}
+
+type Server struct {
+	Router *chi.Mux
+	*repository.Repository
+}
+
+func CreateNewServer() *Server {
+	r, err := repository.NewRepository(os.Getenv("POSTGRES_DSN"))
 	if err != nil {
 		log.Fatalf("failed to create repository: %v", err)
 	}
+	s := &Server{
+		Router:     chi.NewRouter(),
+		Repository: &r,
+	}
+	return s
+}
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
-		Resolvers: &graph.Resolver{
-			BannedSubreddit: repo.BannedSubreddit,
-		},
-	}))
-
-	srv.Use(extension.Introspection{})
-
-	http.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
-	http.Handle("/graphql", srv)
-
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+func (s *Server) MountHandlers(gql *handler.Server) {
+	s.Router.Use(middleware.Logger)
+	s.Router.Get("/", playground.Handler("GraphQL playground", graphQLEndpoint))
+	s.Router.Post(graphQLEndpoint, gql.ServeHTTP)
 }
