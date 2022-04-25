@@ -1,4 +1,4 @@
-module github/jamieastley/repository
+module github.com/jamieastley/limbretrievalbot/repository
 
 go 1.18
 

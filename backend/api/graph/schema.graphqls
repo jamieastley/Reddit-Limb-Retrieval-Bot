@@ -1,0 +1,24 @@
+type BannedSubreddit {
+  id: ID!
+  subreddit: String!
+  insertedAt: String!
+}
+
+type Thread {
+  id: ID!
+  threadId: String!
+  insertedAt: String!
+}
+
+type Query {
+  thread(threadId:String!): Thread
+  IsBannedSubreddit(subreddit:String!): BannedSubreddit
+}
+
+type Mutation {
+  addBannedSubreddit(input: BannedSubredditInput!): BannedSubreddit!
+}
+
+input BannedSubredditInput {
+  subreddit: String!
+}

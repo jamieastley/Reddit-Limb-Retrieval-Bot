@@ -1,12 +1,13 @@
 package repository
 
 import (
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"testing"
-	"time"
 )
 
 const subreddit = "golang"
@@ -24,38 +25,46 @@ func TestRepository_Insert(t *testing.T) {
 	db := setupDb(t)
 	_ = db.AutoMigrate(&BannedSubreddit{})
 
-	repository := &repository{
+	data := repository{
 		db:    db,
 		clock: &fakeClock{},
 	}
+	repo := Repository{
+		BannedSubreddit: &bannedSubredditHandler{data},
+	}
 
-	bs, err := repository.Insert(subreddit)
+	bs, err := repo.BannedSubreddit.Insert(subreddit)
 	assert.Equal(t, bs.Subreddit, subreddit)
 	assert.Equal(t, bs.InsertedAt, mockDate)
 	assert.NoError(t, err)
 }
 
 func TestRepository_Get(t *testing.T) {
-	db := setupDb(t)
-	_ = db.AutoMigrate(&BannedSubreddit{})
 	sub := BannedSubreddit{
 		Subreddit:  subreddit,
 		InsertedAt: mockDate,
 	}
-	repository := &repository{
+
+	db := setupDb(t)
+	_ = db.AutoMigrate(&BannedSubreddit{})
+
+	data := repository{
 		db:    db,
 		clock: &fakeClock{},
 	}
+	repo := Repository{
+		BannedSubreddit: &bannedSubredditHandler{data},
+	}
 
 	t.Run("No results", func(t *testing.T) {
-		result, err := repository.Get(subreddit)
+		result, err := repo.BannedSubreddit.Get(subreddit)
 		assert.Nil(t, result)
 		assert.Error(t, err)
 	})
 
 	t.Run("Returns result", func(t *testing.T) {
 		db.Create(&sub)
-		result, err := repository.Get(subreddit)
+		result, err := repo.BannedSubreddit.Get(subreddit)
 		assert.Equal(t, sub.Subreddit, result.Subreddit)
 		assert.NoError(t, err)
 	})

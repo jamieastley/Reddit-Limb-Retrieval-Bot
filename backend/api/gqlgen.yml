@@ -37,6 +37,10 @@ resolver:
 autobind:
 #  - "api/graph/model"
 
+# Set to skip running `go mod tidy` when generating server code
+# ! required when using Go Workspace with unpublished modules
+skip_mod_tidy: true
+
 # This section declares type mapping between the GraphQL and go type systems
 #
 # The first line in each type will be used as defaults for resolver arguments and
