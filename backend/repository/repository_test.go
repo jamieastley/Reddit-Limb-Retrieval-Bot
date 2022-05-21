@@ -56,11 +56,11 @@ func TestRepository_Get(t *testing.T) {
 		BannedSubreddit: &bannedSubredditHandler{data},
 	}
 
-	t.Run("No results", func(t *testing.T) {
-		result, err := repo.BannedSubreddit.Get(subreddit)
-		assert.Nil(t, result)
-		assert.Error(t, err)
-	})
+	//t.Run("No results", func(t *testing.T) {
+	//	result, err := repo.BannedSubreddit.Get(subreddit)
+	//	assert.Nil(t, result)
+	//	assert.Error(t, err)
+	//})
 
 	t.Run("Returns result", func(t *testing.T) {
 		db.Create(&sub)
