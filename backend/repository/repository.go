@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type IRepository interface {
@@ -29,9 +30,16 @@ type bannedSubredditHandler struct {
 }
 
 func NewRepository(dsn string) (Repository, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default,
+	})
 	if err != nil {
 		return Repository{}, err
+	}
+
+	initErr := initTables(db)
+	if err != nil {
+		return Repository{}, initErr
 	}
 
 	repo := repository{
@@ -63,4 +71,8 @@ func (b *bannedSubredditHandler) Get(subreddit string) (*BannedSubreddit, error)
 	}
 
 	return &sub, nil
+}
+
+func initTables(db *gorm.DB) error {
+	return db.AutoMigrate(&BannedSubreddit{})
 }

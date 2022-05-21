@@ -3,16 +3,15 @@ package main
 import (
 	"api/graph"
 	"api/graph/generated"
+	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jamieastley/limbretrievalbot/repository"
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
 )
 
 const defaultPort = "8080"
@@ -24,7 +23,11 @@ func main() {
 		port = defaultPort
 	}
 
-	s := CreateNewServer()
+	r, err := repository.NewRepository(os.Getenv("POSTGRES_DSN"))
+	if err != nil {
+		log.Fatalf("failed to create repository: %v", err)
+	}
+	s := CreateNewServer(&r)
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{
 			BannedSubreddit: s.BannedSubreddit,
@@ -42,14 +45,10 @@ type Server struct {
 	*repository.Repository
 }
 
-func CreateNewServer() *Server {
-	r, err := repository.NewRepository(os.Getenv("POSTGRES_DSN"))
-	if err != nil {
-		log.Fatalf("failed to create repository: %v", err)
-	}
+func CreateNewServer(r *repository.Repository) *Server {
 	s := &Server{
 		Router:     chi.NewRouter(),
-		Repository: &r,
+		Repository: r,
 	}
 	return s
 }
