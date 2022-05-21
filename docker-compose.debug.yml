@@ -2,24 +2,34 @@ version: '3.9'
 
 services:
   db:
-    container_name: Database
+    container_name: Postgres-DB
+    build:
+      context: backend
     env_file:
       - .env
     image: postgres:14.2-alpine
     restart: always
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT}:5432'
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB}", "-h", "localhost", "-p", "${POSTGRES_PORT}", "-U", "${POSTGRES_PORT}"]
+      start_period: 10s
+      interval: 20s
+      timeout: 10s
+      retries: 5
     volumes:
       - limbretrievalbot-data:/var/lib/postgresql/data
-      - ./.sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
 
   api:
     container_name: API
+    depends_on:
+      db:
+        condition: service_healthy
     env_file:
       - .env
     build:
-      context: ./api
-      dockerfile: docker/Dockerfile
+      context: ./backend
+      dockerfile: api/docker/Dockerfile
     ports:
       - "3000:8080"
     command: /etc/bin/api
@@ -27,7 +37,7 @@ services:
   bot:
     container_name: Bot
     depends_on:
-      - db
+      - api
     env_file:
       - .env
     build:
@@ -36,7 +46,6 @@ services:
     volumes:
       - limbretrievalbot-data:/var/lib/bot
     command: /etc/bin/limbretrievalbot
-
 
 volumes:
   limbretrievalbot-data:
