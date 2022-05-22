@@ -19,6 +19,14 @@ type BannedSubredditInput struct {
 	Subreddit string `json:"subreddit"`
 }
 
+// Defines a user who has requested to opt-out of the bot fixing their mistakes.
+type IgnoredUser struct {
+	// The username of the Redditor who refuses to learn Markdown.
+	Username string `json:"username"`
+	// The UTC ISO-8601 String of when the subreddit was saved as banned.
+	IgnoredAt string `json:"ignoredAt"`
+}
+
 type Thread struct {
 	ID         string `json:"id"`
 	ThreadID   string `json:"threadId"`

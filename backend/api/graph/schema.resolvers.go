@@ -23,6 +23,10 @@ func (r *mutationResolver) AddBannedSubreddit(ctx context.Context, input model.B
 	}, nil
 }
 
+func (r *mutationResolver) AddIgnoredUser(ctx context.Context, username string) (*model.IgnoredUser, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
 func (r *queryResolver) Thread(ctx context.Context, threadID string) (*model.Thread, error) {
 	panic(fmt.Errorf("not implemented"))
 }
@@ -64,6 +68,26 @@ func (r *queryResolver) BannedSubreddits(ctx context.Context) ([]*model.BannedSu
 	}
 
 	return results, nil
+}
+
+func (r *queryResolver) IgnoredUser(ctx context.Context, username string) (*model.IgnoredUser, error) {
+	return &model.IgnoredUser{
+		Username:  "SomeRandomRedditor",
+		IgnoredAt: utils.FormatUnixToUTCString(1653230094),
+	}, nil
+}
+
+func (r *queryResolver) IgnoredUsers(ctx context.Context) ([]*model.IgnoredUser, error) {
+	return []*model.IgnoredUser{
+		{
+			Username:  "SomeRandomRedditor",
+			IgnoredAt: utils.FormatUnixToUTCString(1653230094),
+		},
+		{
+			Username:  "SomeRandomRedditor2",
+			IgnoredAt: utils.FormatUnixToUTCString(1653230094),
+		},
+	}, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.

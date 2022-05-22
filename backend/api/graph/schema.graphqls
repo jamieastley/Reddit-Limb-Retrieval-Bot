@@ -21,6 +21,21 @@ type Thread {
   insertedAt: String!
 }
 
+"""
+Defines a user who has requested to opt-out of the bot fixing their mistakes.
+"""
+type IgnoredUser {
+  """
+  The username of the Redditor who refuses to learn Markdown.
+  """
+  username: String!
+
+  """
+  The UTC ISO-8601 String of when the user requested to be ignored.
+  """
+  ignoredAt: String!
+}
+
 type Query {
   thread(threadId:String!): Thread
   """
@@ -32,6 +47,16 @@ type Query {
   Returns all banned subreddits.
   """
   bannedSubreddits: [BannedSubreddit]
+
+  """
+  Returns the details of when the given user refused to learn Markdown.
+  """
+  ignoredUser(username: String!): IgnoredUser
+
+  """
+  Returns a list of all users which have opted-out of learning Markdown.
+  """
+  ignoredUsers: [IgnoredUser]
 }
 
 type Mutation {
@@ -39,6 +64,11 @@ type Mutation {
   Inserts a subreddit as a banned subreddit.
   """
   addBannedSubreddit(input: BannedSubredditInput!): BannedSubreddit!
+
+  """
+  Inserts a user to ignore from bot invocations.
+  """
+  addIgnoredUser(username: String!): IgnoredUser!
 }
 
 input BannedSubredditInput {
