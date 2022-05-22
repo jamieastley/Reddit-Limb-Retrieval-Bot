@@ -86,5 +86,8 @@ func (b *bannedSubredditHandler) Get(subreddit string) (*BannedSubreddit, error)
 }
 
 func initTables(db *gorm.DB) error {
-	return db.AutoMigrate(&BannedSubreddit{})
+	return db.AutoMigrate(
+		&BannedSubreddit{},
+		&IgnoredUser{},
+	)
 }
