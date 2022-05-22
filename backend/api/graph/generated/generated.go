@@ -43,7 +43,6 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	BannedSubreddit struct {
-		ID         func(childComplexity int) int
 		InsertedAt func(childComplexity int) int
 		Subreddit  func(childComplexity int) int
 	}
@@ -53,8 +52,9 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		IsBannedSubreddit func(childComplexity int, subreddit string) int
-		Thread            func(childComplexity int, threadID string) int
+		BannedSubreddit  func(childComplexity int, subreddit string) int
+		BannedSubreddits func(childComplexity int) int
+		Thread           func(childComplexity int, threadID string) int
 	}
 
 	Thread struct {
@@ -69,7 +69,8 @@ type MutationResolver interface {
 }
 type QueryResolver interface {
 	Thread(ctx context.Context, threadID string) (*model.Thread, error)
-	IsBannedSubreddit(ctx context.Context, subreddit string) (*model.BannedSubreddit, error)
+	BannedSubreddit(ctx context.Context, subreddit string) (*model.BannedSubreddit, error)
+	BannedSubreddits(ctx context.Context) ([]*model.BannedSubreddit, error)
 }
 
 type executableSchema struct {
@@ -86,13 +87,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
-
-	case "BannedSubreddit.id":
-		if e.complexity.BannedSubreddit.ID == nil {
-			break
-		}
-
-		return e.complexity.BannedSubreddit.ID(childComplexity), true
 
 	case "BannedSubreddit.insertedAt":
 		if e.complexity.BannedSubreddit.InsertedAt == nil {
@@ -120,17 +114,24 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.AddBannedSubreddit(childComplexity, args["input"].(model.BannedSubredditInput)), true
 
-	case "Query.IsBannedSubreddit":
-		if e.complexity.Query.IsBannedSubreddit == nil {
+	case "Query.bannedSubreddit":
+		if e.complexity.Query.BannedSubreddit == nil {
 			break
 		}
 
-		args, err := ec.field_Query_IsBannedSubreddit_args(context.TODO(), rawArgs)
+		args, err := ec.field_Query_bannedSubreddit_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.IsBannedSubreddit(childComplexity, args["subreddit"].(string)), true
+		return e.complexity.Query.BannedSubreddit(childComplexity, args["subreddit"].(string)), true
+
+	case "Query.bannedSubreddits":
+		if e.complexity.Query.BannedSubreddits == nil {
+			break
+		}
+
+		return e.complexity.Query.BannedSubreddits(childComplexity), true
 
 	case "Query.thread":
 		if e.complexity.Query.Thread == nil {
@@ -229,14 +230,20 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "graph/schema.graphqls", Input: `# GraphQL schema example
-#
-# https://gqlgen.com/getting-started/
+	{Name: "graph/schema.graphqls", Input: `
+"""
+Defines a banned subreddit.
 
-
+Subreddits are typically saved as banned when the bot fails to respond to comments within a given subreddit.
+"""
 type BannedSubreddit {
-  id: ID!
+  """
+  The name of the subreddit.
+  """
   subreddit: String!
+  """
+  The UTC ISO-8601 String of when the subreddit was saved as banned.
+  """
   insertedAt: String!
 }
 
@@ -248,14 +255,30 @@ type Thread {
 
 type Query {
   thread(threadId:String!): Thread
-  IsBannedSubreddit(subreddit:String!): BannedSubreddit
+  """
+  Returns details of when the bot was banned from the given subreddit, if it exists.
+  """
+  bannedSubreddit(subreddit:String!): BannedSubreddit
+
+  """
+  Returns all banned subreddits.
+  """
+  bannedSubreddits: [BannedSubreddit]
 }
 
 type Mutation {
+  """
+  Inserts a subreddit as a banned subreddit.
+  """
   addBannedSubreddit(input: BannedSubredditInput!): BannedSubreddit!
 }
 
 input BannedSubredditInput {
+  """
+  The name of the subreddit.
+
+  Should exclude the leading 'r/', as this should be up to the caller/client to append if they so wish.
+  """
   subreddit: String!
 }
 `, BuiltIn: false},
@@ -281,21 +304,6 @@ func (ec *executionContext) field_Mutation_addBannedSubreddit_args(ctx context.C
 	return args, nil
 }
 
-func (ec *executionContext) field_Query_IsBannedSubreddit_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 string
-	if tmp, ok := rawArgs["subreddit"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subreddit"))
-		arg0, err = ec.unmarshalNString2string(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["subreddit"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -308,6 +316,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_bannedSubreddit_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["subreddit"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subreddit"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["subreddit"] = arg0
 	return args, nil
 }
 
@@ -363,41 +386,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
-
-func (ec *executionContext) _BannedSubreddit_id(ctx context.Context, field graphql.CollectedField, obj *model.BannedSubreddit) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "BannedSubreddit",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   false,
-		IsResolver: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
 
 func (ec *executionContext) _BannedSubreddit_subreddit(ctx context.Context, field graphql.CollectedField, obj *model.BannedSubreddit) (ret graphql.Marshaler) {
 	defer func() {
@@ -550,7 +538,7 @@ func (ec *executionContext) _Query_thread(ctx context.Context, field graphql.Col
 	return ec.marshalOThread2ᚖapiᚋgraphᚋmodelᚐThread(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_IsBannedSubreddit(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_bannedSubreddit(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -567,7 +555,7 @@ func (ec *executionContext) _Query_IsBannedSubreddit(ctx context.Context, field 
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Query_IsBannedSubreddit_args(ctx, rawArgs)
+	args, err := ec.field_Query_bannedSubreddit_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
@@ -575,7 +563,7 @@ func (ec *executionContext) _Query_IsBannedSubreddit(ctx context.Context, field 
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().IsBannedSubreddit(rctx, args["subreddit"].(string))
+		return ec.resolvers.Query().BannedSubreddit(rctx, args["subreddit"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -587,6 +575,38 @@ func (ec *executionContext) _Query_IsBannedSubreddit(ctx context.Context, field 
 	res := resTmp.(*model.BannedSubreddit)
 	fc.Result = res
 	return ec.marshalOBannedSubreddit2ᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_bannedSubreddits(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().BannedSubreddits(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.BannedSubreddit)
+	fc.Result = res
+	return ec.marshalOBannedSubreddit2ᚕᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -1992,16 +2012,6 @@ func (ec *executionContext) _BannedSubreddit(ctx context.Context, sel ast.Select
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("BannedSubreddit")
-		case "id":
-			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._BannedSubreddit_id(ctx, field, obj)
-			}
-
-			out.Values[i] = innerFunc(ctx)
-
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "subreddit":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._BannedSubreddit_subreddit(ctx, field, obj)
@@ -2112,7 +2122,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			out.Concurrently(i, func() graphql.Marshaler {
 				return rrm(innerCtx)
 			})
-		case "IsBannedSubreddit":
+		case "bannedSubreddit":
 			field := field
 
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
@@ -2121,7 +2131,27 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_IsBannedSubreddit(ctx, field)
+				res = ec._Query_bannedSubreddit(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx, innerFunc)
+			}
+
+			out.Concurrently(i, func() graphql.Marshaler {
+				return rrm(innerCtx)
+			})
+		case "bannedSubreddits":
+			field := field
+
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_bannedSubreddits(ctx, field)
 				return res
 			}
 
@@ -2946,6 +2976,47 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalOBannedSubreddit2ᚕᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx context.Context, sel ast.SelectionSet, v []*model.BannedSubreddit) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOBannedSubreddit2ᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	return ret
 }
 
 func (ec *executionContext) marshalOBannedSubreddit2ᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx context.Context, sel ast.SelectionSet, v *model.BannedSubreddit) graphql.Marshaler {

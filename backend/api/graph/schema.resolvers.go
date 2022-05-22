@@ -8,20 +8,18 @@ import (
 	"api/graph/model"
 	"context"
 	"fmt"
-	"strconv"
-	"time"
+	"utils"
 )
 
 func (r *mutationResolver) AddBannedSubreddit(ctx context.Context, input model.BannedSubredditInput) (*model.BannedSubreddit, error) {
-	res, err := r.BannedSubreddit.Insert(input.Subreddit)
+	res, err := r.BannedSubredditHandler.Insert(input.Subreddit)
 	if err != nil {
 		return nil, err
 	}
 
 	return &model.BannedSubreddit{
-		ID:         strconv.Itoa(int(res.ID)),
 		Subreddit:  res.Subreddit,
-		InsertedAt: res.InsertedAt.Format(time.RFC3339),
+		InsertedAt: utils.FormatUnixToUTCString(res.InsertedAt),
 	}, nil
 }
 
@@ -29,17 +27,43 @@ func (r *queryResolver) Thread(ctx context.Context, threadID string) (*model.Thr
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *queryResolver) IsBannedSubreddit(ctx context.Context, subreddit string) (*model.BannedSubreddit, error) {
-	res, err := r.BannedSubreddit.Get(subreddit)
+func (r *queryResolver) BannedSubreddit(ctx context.Context, subreddit string) (*model.BannedSubreddit, error) {
+	res, err := r.BannedSubredditHandler.Get(subreddit)
+
+	// no result, not saved as banned subreddit
+	if res.InsertedAt == 0 && err != nil {
+		return &model.BannedSubreddit{
+			Subreddit: subreddit,
+		}, nil
+	}
+
+	// some other error occurred, surface it
 	if err != nil {
 		return nil, err
 	}
 
 	return &model.BannedSubreddit{
-		ID:         strconv.Itoa(int(res.ID)),
 		Subreddit:  res.Subreddit,
-		InsertedAt: res.InsertedAt.Format(time.RFC3339),
+		InsertedAt: utils.FormatUnixToUTCString(res.InsertedAt),
 	}, nil
+}
+
+func (r *queryResolver) BannedSubreddits(ctx context.Context) ([]*model.BannedSubreddit, error) {
+	res, err := r.BannedSubredditHandler.GetAll()
+
+	if err != nil {
+		return []*model.BannedSubreddit{}, err
+	}
+
+	results := make([]*model.BannedSubreddit, len(*res))
+	for i, subreddit := range *res {
+		results[i] = &model.BannedSubreddit{
+			Subreddit:  subreddit.Subreddit,
+			InsertedAt: utils.FormatUnixToUTCString(subreddit.InsertedAt),
+		}
+	}
+
+	return results, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.

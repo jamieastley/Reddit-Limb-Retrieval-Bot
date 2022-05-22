@@ -23,10 +23,22 @@ type repository struct {
 type IBannedSubreddit interface {
 	Insert(subreddit string) (*BannedSubreddit, error)
 	Get(subreddit string) (*BannedSubreddit, error)
+	GetAll() (*[]BannedSubreddit, error)
 }
 
 type bannedSubredditHandler struct {
 	repository
+}
+
+func (b *bannedSubredditHandler) GetAll() (*[]BannedSubreddit, error) {
+	var bannedSubreddits []BannedSubreddit
+	results := b.db.Find(&bannedSubreddits)
+
+	if results.Error != nil {
+		return &[]BannedSubreddit{}, results.Error
+	}
+
+	return &bannedSubreddits, nil
 }
 
 func NewRepository(dsn string) (Repository, error) {
@@ -54,9 +66,9 @@ func NewRepository(dsn string) (Repository, error) {
 func (b *bannedSubredditHandler) Insert(subreddit string) (*BannedSubreddit, error) {
 	sub := BannedSubreddit{
 		Subreddit:  subreddit,
-		InsertedAt: b.clock.NowUTC(),
+		InsertedAt: b.clock.NowUTC().Unix(),
 	}
-	if err := b.db.Create(&sub).Error; err != nil {
+	if err := b.db.FirstOrCreate(&sub).Error; err != nil {
 		return nil, err
 	}
 
@@ -67,7 +79,7 @@ func (b *bannedSubredditHandler) Get(subreddit string) (*BannedSubreddit, error)
 	var sub BannedSubreddit
 	if err := b.db.Where("subreddit = ?", subreddit).First(&sub).Error; err != nil {
 		fmt.Println(fmt.Sprintf("failed to query for subreddit: %s", subreddit))
-		return nil, err
+		return &sub, err
 	}
 
 	return &sub, nil

@@ -7,5 +7,5 @@ import "github.com/jamieastley/limbretrievalbot/repository"
 // It serves as dependency injection for your app, add any dependencies you require here.
 
 type Resolver struct {
-	BannedSubreddit repository.IBannedSubreddit
+	BannedSubredditHandler repository.IBannedSubreddit
 }

@@ -30,7 +30,7 @@ func main() {
 	s := CreateNewServer(&r)
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{
-			BannedSubreddit: s.BannedSubreddit,
+			BannedSubredditHandler: s.BannedSubreddit,
 		},
 	}))
 	srv.Use(extension.Introspection{})
