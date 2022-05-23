@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"fmt"
+	"errors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -13,6 +13,7 @@ type IRepository interface {
 
 type Repository struct {
 	BannedSubreddit IBannedSubreddit
+	IgnoredUser     IIgnoredUser
 }
 
 type repository struct {
@@ -23,22 +24,33 @@ type repository struct {
 type IBannedSubreddit interface {
 	Insert(subreddit string) (*BannedSubreddit, error)
 	Get(subreddit string) (*BannedSubreddit, error)
-	GetAll() (*[]BannedSubreddit, error)
+	GetAll() ([]BannedSubreddit, error)
+}
+
+type IIgnoredUser interface {
+	Insert(username string) (*IgnoredUser, error)
+	Get(username string) (*IgnoredUser, error)
+	GetAll() ([]IgnoredUser, error)
+	Remove(username string) (int64, error)
 }
 
 type bannedSubredditHandler struct {
 	repository
 }
 
-func (b *bannedSubredditHandler) GetAll() (*[]BannedSubreddit, error) {
+type ignoredUserHandler struct {
+	repository
+}
+
+func (b *bannedSubredditHandler) GetAll() ([]BannedSubreddit, error) {
 	var bannedSubreddits []BannedSubreddit
 	results := b.db.Find(&bannedSubreddits)
 
 	if results.Error != nil {
-		return &[]BannedSubreddit{}, results.Error
+		return []BannedSubreddit{}, results.Error
 	}
 
-	return &bannedSubreddits, nil
+	return bannedSubreddits, nil
 }
 
 func NewRepository(dsn string) (Repository, error) {
@@ -60,6 +72,7 @@ func NewRepository(dsn string) (Repository, error) {
 	}
 	return Repository{
 		BannedSubreddit: &bannedSubredditHandler{repo},
+		IgnoredUser:     &ignoredUserHandler{repo},
 	}, nil
 }
 
@@ -77,12 +90,51 @@ func (b *bannedSubredditHandler) Insert(subreddit string) (*BannedSubreddit, err
 
 func (b *bannedSubredditHandler) Get(subreddit string) (*BannedSubreddit, error) {
 	var sub BannedSubreddit
-	if err := b.db.Where("subreddit = ?", subreddit).First(&sub).Error; err != nil {
-		fmt.Println(fmt.Sprintf("failed to query for subreddit: %s", subreddit))
-		return &sub, err
+	err := b.db.Where("subreddit = ?", subreddit).First(&sub).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &sub, nil
 	}
 
-	return &sub, nil
+	return &sub, err
+}
+
+func (i *ignoredUserHandler) Insert(username string) (*IgnoredUser, error) {
+	user := IgnoredUser{
+		Username:  username,
+		IgnoredAt: i.clock.NowUTC().Unix(),
+	}
+
+	if err := i.db.FirstOrCreate(&user).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (i *ignoredUserHandler) Get(username string) (*IgnoredUser, error) {
+	var user IgnoredUser
+	err := i.db.Where("username = ?", username).First(&user).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return &user, nil
+	}
+
+	return &user, err
+}
+
+func (i *ignoredUserHandler) GetAll() ([]IgnoredUser, error) {
+	var ignoredUsers []IgnoredUser
+
+	result := i.db.Find(&ignoredUsers)
+
+	return ignoredUsers, result.Error
+}
+
+func (i *ignoredUserHandler) Remove(username string) (int64, error) {
+	rows := i.db.Where("username = ?", username).Delete(&IgnoredUser{})
+
+	return rows.RowsAffected, rows.Error
 }
 
 func initTables(db *gorm.DB) error {
