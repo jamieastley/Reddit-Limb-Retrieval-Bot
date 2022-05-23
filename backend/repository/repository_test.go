@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -10,7 +11,17 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-const subreddit = "golang"
+var subredditList = []string{
+	"golang",
+	"programming",
+	"programminghorror",
+}
+
+var ignoredUsers = []string{
+	"BobbyTables",
+	"MichaelScott",
+	"AnitaHuginkiss",
+}
 
 var mockDate = time.Date(2022, 1, 1, 12, 0, 0, 0, time.UTC)
 
@@ -20,10 +31,12 @@ func (f *fakeClock) NowUTC() time.Time {
 	return mockDate
 }
 
-func TestRepository_Insert(t *testing.T) {
-
+func TestBannedSubredditHandler_Success(t *testing.T) {
 	db := setupDb(t)
-	_ = db.AutoMigrate(&BannedSubreddit{})
+	sqlDb, _ := db.DB()
+	defer func(sqlDb *sql.DB) {
+		_ = sqlDb.Close()
+	}(sqlDb)
 
 	data := repository{
 		db:    db,
@@ -33,42 +46,125 @@ func TestRepository_Insert(t *testing.T) {
 		BannedSubreddit: &bannedSubredditHandler{data},
 	}
 
-	bs, err := repo.BannedSubreddit.Insert(subreddit)
-	assert.Equal(t, bs.Subreddit, subreddit)
-	assert.Equal(t, bs.InsertedAt, mockDate)
-	assert.NoError(t, err)
-}
+	t.Run(`Insert banned subreddits`, func(t *testing.T) {
+		for _, sub := range subredditList {
+			res, err := repo.BannedSubreddit.Insert(sub)
+			assert.Equal(t, res.Subreddit, sub)
+			assert.Equal(t, res.InsertedAt, mockDate.Unix())
+			assert.NoError(t, err)
+		}
+	})
 
-func TestRepository_Get(t *testing.T) {
-	sub := BannedSubreddit{
-		Subreddit:  subreddit,
-		InsertedAt: mockDate,
-	}
-
-	db := setupDb(t)
-	_ = db.AutoMigrate(&BannedSubreddit{})
-
-	data := repository{
-		db:    db,
-		clock: &fakeClock{},
-	}
-	repo := Repository{
-		BannedSubreddit: &bannedSubredditHandler{data},
-	}
-
-	//t.Run("No results", func(t *testing.T) {
-	//	result, err := repo.BannedSubreddit.Get(subreddit)
-	//	assert.Nil(t, result)
-	//	assert.Error(t, err)
-	//})
-
-	t.Run("Returns result", func(t *testing.T) {
-		db.Create(&sub)
-		result, err := repo.BannedSubreddit.Get(subreddit)
-		assert.Equal(t, sub.Subreddit, result.Subreddit)
+	t.Run(`Get banned subreddit`, func(t *testing.T) {
+		res, err := repo.BannedSubreddit.Get(subredditList[0])
+		assert.Equal(t, res.Subreddit, subredditList[0])
+		assert.Equal(t, res.InsertedAt, mockDate.Unix())
 		assert.NoError(t, err)
 	})
 
+	t.Run(`Get all banned subreddits`, func(t *testing.T) {
+		res, err := repo.BannedSubreddit.GetAll()
+		for i, sub := range subredditList {
+			assert.Equal(t, res[i].Subreddit, sub)
+		}
+		assert.NoError(t, err)
+	})
+}
+
+func TestBannedSubredditHandler_NoResults(t *testing.T) {
+	db := setupDb(t)
+	sqlDb, _ := db.DB()
+	defer func(sqlDb *sql.DB) {
+		_ = sqlDb.Close()
+	}(sqlDb)
+
+	data := repository{
+		db:    db,
+		clock: &fakeClock{},
+	}
+	repo := Repository{
+		BannedSubreddit: &bannedSubredditHandler{data},
+	}
+
+	t.Run(`Get banned subreddit`, func(t *testing.T) {
+		res, err := repo.BannedSubreddit.Get(subredditList[0])
+		assert.Equal(t, res, &BannedSubreddit{})
+		assert.NoError(t, err)
+	})
+
+	t.Run(`Get all banned subreddits`, func(t *testing.T) {
+		res, err := repo.BannedSubreddit.GetAll()
+		assert.Equal(t, res, []BannedSubreddit{})
+		assert.NoError(t, err)
+	})
+}
+
+func TestIgnoredUserHandler_Success(t *testing.T) {
+	db := setupDb(t)
+	sqlDb, _ := db.DB()
+	defer func(sqlDb *sql.DB) {
+		_ = sqlDb.Close()
+	}(sqlDb)
+
+	data := repository{
+		db:    db,
+		clock: &fakeClock{},
+	}
+	repo := Repository{
+		IgnoredUser: &ignoredUserHandler{data},
+	}
+
+	t.Run(`Insert banned users`, func(t *testing.T) {
+		for _, user := range ignoredUsers {
+			res, err := repo.IgnoredUser.Insert(user)
+			assert.Equal(t, res.Username, user)
+			assert.Equal(t, res.IgnoredAt, mockDate.Unix())
+			assert.NoError(t, err)
+		}
+	})
+
+	t.Run(`Get ignored user`, func(t *testing.T) {
+		res, err := repo.IgnoredUser.Get(ignoredUsers[0])
+		assert.Equal(t, res.Username, ignoredUsers[0])
+		assert.Equal(t, res.IgnoredAt, mockDate.Unix())
+		assert.NoError(t, err)
+	})
+
+	t.Run(`Get all ignored users`, func(t *testing.T) {
+		res, err := repo.IgnoredUser.GetAll()
+		for i, sub := range ignoredUsers {
+			assert.Equal(t, res[i].Username, sub)
+		}
+		assert.NoError(t, err)
+	})
+}
+
+func TestIgnoredUserHandler_NoResults(t *testing.T) {
+	db := setupDb(t)
+	sqlDb, _ := db.DB()
+	defer func(sqlDb *sql.DB) {
+		_ = sqlDb.Close()
+	}(sqlDb)
+
+	data := repository{
+		db:    db,
+		clock: &fakeClock{},
+	}
+	repo := Repository{
+		IgnoredUser: &ignoredUserHandler{data},
+	}
+
+	t.Run(`Get ignored user`, func(t *testing.T) {
+		res, err := repo.IgnoredUser.Get(ignoredUsers[0])
+		assert.Equal(t, res, &IgnoredUser{})
+		assert.NoError(t, err)
+	})
+
+	t.Run(`Get all ignored users`, func(t *testing.T) {
+		res, err := repo.IgnoredUser.GetAll()
+		assert.Equal(t, res, []IgnoredUser{})
+		assert.NoError(t, err)
+	})
 }
 
 func setupDb(t *testing.T) *gorm.DB {
@@ -80,5 +176,6 @@ func setupDb(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Error(err)
 	}
+	_ = db.AutoMigrate(&BannedSubreddit{}, &IgnoredUser{})
 	return db
 }
