@@ -8,4 +8,5 @@ import "github.com/jamieastley/limbretrievalbot/repository"
 
 type Resolver struct {
 	BannedSubredditHandler repository.IBannedSubreddit
+	IgnoredUserHandler     repository.IIgnoredUser
 }

@@ -47,6 +47,10 @@ type ComplexityRoot struct {
 		Subreddit  func(childComplexity int) int
 	}
 
+	DeleteMutationResponse struct {
+		AffectedRows func(childComplexity int) int
+	}
+
 	IgnoredUser struct {
 		IgnoredAt func(childComplexity int) int
 		Username  func(childComplexity int) int
@@ -55,6 +59,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddBannedSubreddit func(childComplexity int, input model.BannedSubredditInput) int
 		AddIgnoredUser     func(childComplexity int, username string) int
+		RemoveIgnoredUser  func(childComplexity int, username string) int
 	}
 
 	Query struct {
@@ -75,6 +80,7 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	AddBannedSubreddit(ctx context.Context, input model.BannedSubredditInput) (*model.BannedSubreddit, error)
 	AddIgnoredUser(ctx context.Context, username string) (*model.IgnoredUser, error)
+	RemoveIgnoredUser(ctx context.Context, username string) (*model.DeleteMutationResponse, error)
 }
 type QueryResolver interface {
 	Thread(ctx context.Context, threadID string) (*model.Thread, error)
@@ -113,6 +119,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.BannedSubreddit.Subreddit(childComplexity), true
 
+	case "DeleteMutationResponse.affectedRows":
+		if e.complexity.DeleteMutationResponse.AffectedRows == nil {
+			break
+		}
+
+		return e.complexity.DeleteMutationResponse.AffectedRows(childComplexity), true
+
 	case "IgnoredUser.ignoredAt":
 		if e.complexity.IgnoredUser.IgnoredAt == nil {
 			break
@@ -150,6 +163,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.AddIgnoredUser(childComplexity, args["username"].(string)), true
+
+	case "Mutation.removeIgnoredUser":
+		if e.complexity.Mutation.RemoveIgnoredUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeIgnoredUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveIgnoredUser(childComplexity, args["username"].(string)), true
 
 	case "Query.bannedSubreddit":
 		if e.complexity.Query.BannedSubreddit == nil {
@@ -310,6 +335,16 @@ type Thread {
 }
 
 """
+Generic type for removing database rows.
+"""
+type DeleteMutationResponse {
+  """
+  Total rows affected by the given delete mutation.
+  """
+  affectedRows: Int!
+}
+
+"""
 Defines a user who has requested to opt-out of the bot fixing their mistakes.
 """
 type IgnoredUser {
@@ -319,7 +354,7 @@ type IgnoredUser {
   username: String!
 
   """
-  The UTC ISO-8601 String of when the subreddit was saved as banned.
+  The UTC ISO-8601 String of when the user requested to be ignored.
   """
   ignoredAt: String!
 }
@@ -351,12 +386,17 @@ type Mutation {
   """
   Inserts a subreddit as a banned subreddit.
   """
-  addBannedSubreddit(input: BannedSubredditInput!): BannedSubreddit!
+  addBannedSubreddit(input: BannedSubredditInput!): BannedSubreddit
 
   """
   Inserts a user to ignore from bot invocations.
   """
-  addIgnoredUser(username: String!): IgnoredUser!
+  addIgnoredUser(username: String!): IgnoredUser
+
+  """
+  Removes an ignored user from the database, allowing interactions again.
+  """
+  removeIgnoredUser(username: String!): DeleteMutationResponse
 }
 
 input BannedSubredditInput {
@@ -391,6 +431,21 @@ func (ec *executionContext) field_Mutation_addBannedSubreddit_args(ctx context.C
 }
 
 func (ec *executionContext) field_Mutation_addIgnoredUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["username"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["username"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeIgnoredUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
@@ -573,6 +628,41 @@ func (ec *executionContext) _BannedSubreddit_insertedAt(ctx context.Context, fie
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _DeleteMutationResponse_affectedRows(ctx context.Context, field graphql.CollectedField, obj *model.DeleteMutationResponse) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "DeleteMutationResponse",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   false,
+		IsResolver: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AffectedRows, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _IgnoredUser_username(ctx context.Context, field graphql.CollectedField, obj *model.IgnoredUser) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -675,14 +765,11 @@ func (ec *executionContext) _Mutation_addBannedSubreddit(ctx context.Context, fi
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.BannedSubreddit)
 	fc.Result = res
-	return ec.marshalNBannedSubreddit2ᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx, field.Selections, res)
+	return ec.marshalOBannedSubreddit2ᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Mutation_addIgnoredUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -717,14 +804,50 @@ func (ec *executionContext) _Mutation_addIgnoredUser(ctx context.Context, field 
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
 	res := resTmp.(*model.IgnoredUser)
 	fc.Result = res
-	return ec.marshalNIgnoredUser2ᚖapiᚋgraphᚋmodelᚐIgnoredUser(ctx, field.Selections, res)
+	return ec.marshalOIgnoredUser2ᚖapiᚋgraphᚋmodelᚐIgnoredUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeIgnoredUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeIgnoredUser_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveIgnoredUser(rctx, args["username"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.DeleteMutationResponse)
+	fc.Result = res
+	return ec.marshalODeleteMutationResponse2ᚖapiᚋgraphᚋmodelᚐDeleteMutationResponse(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_thread(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2342,6 +2465,37 @@ func (ec *executionContext) _BannedSubreddit(ctx context.Context, sel ast.Select
 	return out
 }
 
+var deleteMutationResponseImplementors = []string{"DeleteMutationResponse"}
+
+func (ec *executionContext) _DeleteMutationResponse(ctx context.Context, sel ast.SelectionSet, obj *model.DeleteMutationResponse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deleteMutationResponseImplementors)
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeleteMutationResponse")
+		case "affectedRows":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._DeleteMutationResponse_affectedRows(ctx, field, obj)
+			}
+
+			out.Values[i] = innerFunc(ctx)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var ignoredUserImplementors = []string{"IgnoredUser"}
 
 func (ec *executionContext) _IgnoredUser(ctx context.Context, sel ast.SelectionSet, obj *model.IgnoredUser) graphql.Marshaler {
@@ -2409,9 +2563,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "addIgnoredUser":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addIgnoredUser(ctx, field)
@@ -2419,9 +2570,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
 
-			if out.Values[i] == graphql.Null {
-				invalids++
+		case "removeIgnoredUser":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_removeIgnoredUser(ctx, field)
 			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3051,20 +3206,6 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNBannedSubreddit2apiᚋgraphᚋmodelᚐBannedSubreddit(ctx context.Context, sel ast.SelectionSet, v model.BannedSubreddit) graphql.Marshaler {
-	return ec._BannedSubreddit(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNBannedSubreddit2ᚖapiᚋgraphᚋmodelᚐBannedSubreddit(ctx context.Context, sel ast.SelectionSet, v *model.BannedSubreddit) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	return ec._BannedSubreddit(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNBannedSubredditInput2apiᚋgraphᚋmodelᚐBannedSubredditInput(ctx context.Context, v interface{}) (model.BannedSubredditInput, error) {
 	res, err := ec.unmarshalInputBannedSubredditInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3100,18 +3241,19 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
-func (ec *executionContext) marshalNIgnoredUser2apiᚋgraphᚋmodelᚐIgnoredUser(ctx context.Context, sel ast.SelectionSet, v model.IgnoredUser) graphql.Marshaler {
-	return ec._IgnoredUser(ctx, sel, &v)
+func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
+	res, err := graphql.UnmarshalInt(v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNIgnoredUser2ᚖapiᚋgraphᚋmodelᚐIgnoredUser(ctx context.Context, sel ast.SelectionSet, v *model.IgnoredUser) graphql.Marshaler {
-	if v == nil {
+func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.SelectionSet, v int) graphql.Marshaler {
+	res := graphql.MarshalInt(v)
+	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
 		}
-		return graphql.Null
 	}
-	return ec._IgnoredUser(ctx, sel, v)
+	return res
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
@@ -3454,6 +3596,13 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	}
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) marshalODeleteMutationResponse2ᚖapiᚋgraphᚋmodelᚐDeleteMutationResponse(ctx context.Context, sel ast.SelectionSet, v *model.DeleteMutationResponse) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DeleteMutationResponse(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOIgnoredUser2ᚕᚖapiᚋgraphᚋmodelᚐIgnoredUser(ctx context.Context, sel ast.SelectionSet, v []*model.IgnoredUser) graphql.Marshaler {

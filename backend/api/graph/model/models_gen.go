@@ -19,11 +19,17 @@ type BannedSubredditInput struct {
 	Subreddit string `json:"subreddit"`
 }
 
+// Generic type for removing database rows.
+type DeleteMutationResponse struct {
+	// Total rows affected by the given delete mutation.
+	AffectedRows int `json:"affectedRows"`
+}
+
 // Defines a user who has requested to opt-out of the bot fixing their mistakes.
 type IgnoredUser struct {
 	// The username of the Redditor who refuses to learn Markdown.
 	Username string `json:"username"`
-	// The UTC ISO-8601 String of when the subreddit was saved as banned.
+	// The UTC ISO-8601 String of when the user requested to be ignored.
 	IgnoredAt string `json:"ignoredAt"`
 }
 

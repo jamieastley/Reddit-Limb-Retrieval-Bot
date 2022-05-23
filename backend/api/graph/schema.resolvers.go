@@ -11,7 +11,7 @@ import (
 	"utils"
 )
 
-func (r *mutationResolver) AddBannedSubreddit(ctx context.Context, input model.BannedSubredditInput) (*model.BannedSubreddit, error) {
+func (r *mutationResolver) AddBannedSubreddit(_ context.Context, input model.BannedSubredditInput) (*model.BannedSubreddit, error) {
 	res, err := r.BannedSubredditHandler.Insert(input.Subreddit)
 	if err != nil {
 		return nil, err
@@ -23,22 +23,36 @@ func (r *mutationResolver) AddBannedSubreddit(ctx context.Context, input model.B
 	}, nil
 }
 
-func (r *mutationResolver) AddIgnoredUser(ctx context.Context, username string) (*model.IgnoredUser, error) {
+func (r *mutationResolver) AddIgnoredUser(_ context.Context, username string) (*model.IgnoredUser, error) {
+	res, err := r.IgnoredUserHandler.Insert(username)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.IgnoredUser{
+		Username:  res.Username,
+		IgnoredAt: utils.FormatUnixToUTCString(res.IgnoredAt),
+	}, err
+}
+
+func (r *mutationResolver) RemoveIgnoredUser(_ context.Context, username string) (*model.DeleteMutationResponse, error) {
+	res, err := r.IgnoredUserHandler.Remove(username)
+
+	return &model.DeleteMutationResponse{
+		AffectedRows: int(res),
+	}, err
+}
+
+func (r *queryResolver) Thread(_ context.Context, threadID string) (*model.Thread, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *queryResolver) Thread(ctx context.Context, threadID string) (*model.Thread, error) {
-	panic(fmt.Errorf("not implemented"))
-}
-
-func (r *queryResolver) BannedSubreddit(ctx context.Context, subreddit string) (*model.BannedSubreddit, error) {
+func (r *queryResolver) BannedSubreddit(_ context.Context, subreddit string) (*model.BannedSubreddit, error) {
 	res, err := r.BannedSubredditHandler.Get(subreddit)
 
 	// no result, not saved as banned subreddit
 	if res.InsertedAt == 0 && err != nil {
-		return &model.BannedSubreddit{
-			Subreddit: subreddit,
-		}, nil
+		return nil, nil
 	}
 
 	// some other error occurred, surface it
@@ -52,15 +66,15 @@ func (r *queryResolver) BannedSubreddit(ctx context.Context, subreddit string) (
 	}, nil
 }
 
-func (r *queryResolver) BannedSubreddits(ctx context.Context) ([]*model.BannedSubreddit, error) {
+func (r *queryResolver) BannedSubreddits(_ context.Context) ([]*model.BannedSubreddit, error) {
 	res, err := r.BannedSubredditHandler.GetAll()
 
 	if err != nil {
 		return []*model.BannedSubreddit{}, err
 	}
 
-	results := make([]*model.BannedSubreddit, len(*res))
-	for i, subreddit := range *res {
+	results := make([]*model.BannedSubreddit, len(res))
+	for i, subreddit := range res {
 		results[i] = &model.BannedSubreddit{
 			Subreddit:  subreddit.Subreddit,
 			InsertedAt: utils.FormatUnixToUTCString(subreddit.InsertedAt),
@@ -70,24 +84,35 @@ func (r *queryResolver) BannedSubreddits(ctx context.Context) ([]*model.BannedSu
 	return results, nil
 }
 
-func (r *queryResolver) IgnoredUser(ctx context.Context, username string) (*model.IgnoredUser, error) {
+func (r *queryResolver) IgnoredUser(_ context.Context, username string) (*model.IgnoredUser, error) {
+	user, err := r.IgnoredUserHandler.Get(username)
+
+	if user.IgnoredAt == 0 && err == nil {
+		return nil, nil
+	}
+
 	return &model.IgnoredUser{
-		Username:  "SomeRandomRedditor",
-		IgnoredAt: utils.FormatUnixToUTCString(1653230094),
-	}, nil
+		Username:  user.Username,
+		IgnoredAt: utils.FormatUnixToUTCString(user.IgnoredAt),
+	}, err
 }
 
-func (r *queryResolver) IgnoredUsers(ctx context.Context) ([]*model.IgnoredUser, error) {
-	return []*model.IgnoredUser{
-		{
-			Username:  "SomeRandomRedditor",
-			IgnoredAt: utils.FormatUnixToUTCString(1653230094),
-		},
-		{
-			Username:  "SomeRandomRedditor2",
-			IgnoredAt: utils.FormatUnixToUTCString(1653230094),
-		},
-	}, nil
+func (r *queryResolver) IgnoredUsers(_ context.Context) ([]*model.IgnoredUser, error) {
+	results, err := r.IgnoredUserHandler.GetAll()
+
+	if err != nil {
+		return []*model.IgnoredUser{}, err
+	}
+
+	users := make([]*model.IgnoredUser, len(results))
+	for i, user := range results {
+		users[i] = &model.IgnoredUser{
+			Username:  user.Username,
+			IgnoredAt: utils.FormatUnixToUTCString(user.IgnoredAt),
+		}
+	}
+
+	return users, nil
 }
 
 // Mutation returns generated.MutationResolver implementation.
